@@ -1,0 +1,6 @@
+graph
+__pycache__
+.games*
+.model*
+models
+data
