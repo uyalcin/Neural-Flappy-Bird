@@ -1,6 +1,8 @@
 from tkinter import *
 import time
 import random
+import tensorflow as tf
+from util import *
 
 # Parameters
 size_window_x = 1024
@@ -13,10 +15,10 @@ wallSpeed = 200
 intervallWalls = 1.5
 wallWidth = 50
 wallHeight = size_window_y
-wallSpacement = 200
+wallSpacement = 120
 
 G = 9.8
-gameSpeed = 3.0
+gameSpeed = 1.5
 
 fenetre = Tk()
 fenetre.title("Neural flappy")
@@ -25,13 +27,16 @@ canvas.configure(background="white")
 
 birds = []
 # Population parameters
-n_population = 1
+n_population = 10
 
-# Creation of the bird
-for k in range(n_population):
-    birds += [canvas.create_rectangle(initPos[0], initPos[1], initPos[0] + birdSize, initPos[1] + birdSize, fill='black')]
-bird = birds[0]
+def initBirds():
+    global birds
+    birds = []
+    # Creation of the birds
+    for k in range(n_population):
+        birds += [canvas.create_rectangle(initPos[0], initPos[1], initPos[0] + birdSize, initPos[1] + birdSize, fill='black')]
 
+initBirds()
 walls = []
 validWall = []
 last_time = time.time()
@@ -40,14 +45,15 @@ initSecond = 2
 seconds = initSecond
 last_time_wall = 0
 
-score = 0
-lost = False
+scores = [0] * n_population
+lost = [False] * n_population
 jump = [True] * n_population
+fitness = [0] * n_population
 
 isAI = True
 
 if(isAI):
-    from model import *
+    from model import NN
 
 def jumping(n_bird):
     global t
@@ -66,7 +72,7 @@ scoreText = canvas.create_text(size_window_x / 2, 80, text="0", anchor=CENTER, f
 canvas.pack()
 
 # Write to a file the features
-file = open("data", "a+")
+#file = open("data", "a+")
 
 if(isAI):
     # Creation of the population
@@ -75,18 +81,64 @@ if(isAI):
         neurals += [NN()]
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
+    predictions = [tf.argmax(neurals[i].a, 1) for i in range(n_population)]
 
 frame = 0
+features_1 = [0] * n_population
+features_2 = [0] * n_population
+
 
 while True:
     deltaTime = (time.time() - last_time) * gameSpeed
-   
+
     for i, bird in enumerate(birds):
+
+        # If the current bird is dead, pass
+        if(bird == None):
+            continue
+
         dY = -(3 - t[i]**2) * deltaTime * 100
         canvas.move(bird, 0, dY)
         canvas.move(bird, 0, (G * t[i]**2) * deltaTime * 200)
 
         t[i] += deltaTime % 60
+
+        # Collision
+        posBird = canvas.coords(bird)
+
+        for wall in walls:
+            posWall = canvas.coords(wall)
+            if(posBird[2] >= posWall[0] and
+                    posBird[0] <= posWall[2] and
+                    posBird[3] >= posWall[1] and
+                    posBird[1] <= posWall[3]):
+                lost[i] = True
+
+        # If the player is out of the window
+        if(posBird[1] > size_window_y or posBird[3] < 0):
+            lost[i] = True
+
+        # Score
+        for j in range(0, len(walls), 2):
+            idWall = j // 2
+            posWall = canvas.coords(walls[j])
+            if(posBird[0] > posWall[2] and not validWall[idWall]):
+                scores[i] += 1
+                validWall[idWall] = True
+
+        # Features
+        for j in range(0, len(walls), 2):
+            idWall = j // 2
+            posWall = canvas.coords(walls[j])
+            if not validWall[idWall]:
+                features_1[i] = posWall[2] - posBird[0]
+                features_2[i] = (-1) * ((posBird[1] + posBird[3]) / 2.0 - (posWall[3] + wallSpacement / 2.0))
+                break
+
+        # Fitness function for each bird
+        fitness[i] += deltaTime * wallSpeed
+
+
     seconds += deltaTime % 60
 
     # Instantiate the walls
@@ -106,16 +158,6 @@ while True:
     for wall in walls:
         canvas.move(wall, -deltaTime * wallSpeed, 0)
 
-    # Collision
-    posBird = canvas.coords(bird)
-
-    for wall in walls:
-        posWall = canvas.coords(wall)
-        if(posBird[2] >= posWall[0] and
-                posBird[0] <= posWall[2] and
-                posBird[3] >= posWall[1] and
-                posBird[1] <= posWall[3]):
-            lost = True
 
     hideWalls = []
     for i in range(len(walls)):
@@ -129,32 +171,12 @@ while True:
     for i in range(len(hideWalls) // 2):
         del(validWall[0])
 
-    # If the player is out of the window
-    if(posBird[1] > size_window_y or posBird[3] < 0):
-        lost = True
 
-    # Score
-    for i in range(0, len(walls), 2):
-        idWall = i // 2
-        posWall = canvas.coords(walls[i])
-        if(posBird[0] > posWall[2] and not validWall[idWall]):
-            score += 1
-            validWall[idWall] = True
-    
-    # Features
-    features_1 = 0
-    features_2 = 0
-    for i in range(0, len(walls), 2):
-        idWall = i // 2
-        posWall = canvas.coords(walls[i])
-        if not validWall[idWall]:
-            features_1 = posWall[2] - posBird[0]
-            features_2 = (-1) * ((posBird[1] + posBird[3]) / 2.0 - (posWall[3] + wallSpacement / 2.0)) 
-            break
-    if(isAI):    
+    # Make predictions
+    if(isAI):
         if(frame % 50 == 0):
             for i in range(n_population):
-                pred = sess.run(tf.argmax(neurals[i].a, 1), feed_dict={x: [[features_1, features_2]]})
+                pred = sess.run(predictions[i], feed_dict={x: [[features_1[i], features_2[i]]]})
                 #print(pred)
                 if(pred == 1):
                     jumping(i)
@@ -168,23 +190,47 @@ while True:
 
 
     # Display score
-    canvas.itemconfigure(scoreText, text=str(score), fill='#445b75')
+    canvas.itemconfigure(scoreText, text=str(max(scores)), fill='#445b75')
     canvas.tag_raise(scoreText)
 
     # Reset the game if lost
-    if(lost):
-        score = 0
+    for i, l in enumerate(lost):
+        if l:
+            canvas.delete(birds[i])
+            birds[i] = None
+
+    if(not(False in lost)):
+        scores = [0] * n_population
         for wall in walls:
             canvas.delete(wall)
         walls = []
         validWall = []
-        for bird in birds:
-            canvas.coords(bird, initPos[0], initPos[1], initPos[0] + birdSize, initPos[1] + birdSize)
-        
         t = [0] * n_population
         second = initSecond
         last_time_wall = 0
-        lost = False
+
+
+        initBirds()
+
+        bestBird = fitness.index(max(fitness))
+        """
+        sess = tf.Session()
+        sess.run(tf.global_variables_initializer())
+        sess.run(tf.local_variables_initializer())
+
+        sess.run(tf.tables_initializer())
+
+        neurals = []
+        for k in range(n_population):
+            neurals += [NN()]
+        predictions = [tf.argmax(neurals[i].a, 1) for i in range(n_population)]
+        """
+
+        # Init each variables
+        scores = [0] * n_population
+        lost = [False] * n_population
+        jump = [True] * n_population
+        fitness = [0] * n_population
 
     frame += 1
     last_time = time.time()
