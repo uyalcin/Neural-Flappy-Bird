@@ -4,3 +4,4 @@ __pycache__
 .model*
 models
 data
+*.swp
