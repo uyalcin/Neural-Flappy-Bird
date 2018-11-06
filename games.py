@@ -3,6 +3,7 @@ import time
 import random
 import tensorflow as tf
 from util import *
+from neural_network import NeuralNetwork
 
 # Parameters
 size_window_x = 1024
@@ -56,6 +57,7 @@ isAI = True
 if(isAI):
     from model import *
 
+
 def jumping(n_bird):
     global t
     t[n_bird] = 0
@@ -80,11 +82,11 @@ if(isAI):
     # Creation of the population
     neurals = []
     for k in range(n_population):
-        neurals += [NN()]
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    predictions = [tf.argmax(neurals[i].a, 1) for i in range(n_population)]
-    sess.graph.finalize()
+        neurals += [NeuralNetwork(N_features, N_neurals, N_classes)]
+    #sess = tf.Session()
+    #sess.run(tf.global_variables_initializer())
+    #predictions = [tf.argmax(neurals[i].a, 1) for i in range(n_population)]
+    #sess.graph.finalize()
 
 frame = 0
 features_1 = [0] * n_population
@@ -179,7 +181,8 @@ while True:
     if(isAI):
         if(frame % 50 == 0):
             for i in range(n_population):
-                pred = sess.run(predictions[i], feed_dict={x: [[features_1[i], features_2[i]]]})
+                #pred = sess.run(predictions[i], feed_dict={x: [[features_1[i], features_2[i]]]})
+                pred = neurals[i].predict([features_1[i], features_2[i]])
                 #print(pred)
                 if(pred == 1):
                     jumping(i)
@@ -193,7 +196,7 @@ while True:
 
 
     # Display score
-    canvas.itemconfigure(scoreText, text=str(max(scores)), fill='#445b75')
+    canvas.itemconfigure(scoreText, text=str(max(scores)) + ", In Life : " + str(len([k for k in birds if k!=None])), fill='#445b75')
     canvas.tag_raise(scoreText)
 
     # Display generation
@@ -217,30 +220,28 @@ while True:
         second = initSecond
         last_time_wall = 0
 
-
         initBirds()
 
         # Get the indices of the best birds
         #print(fitness)
         ranking = sorted(range(n_population), key=lambda x: fitness[x])[::-1]
         #print(ranking)
-        bestBirds = ranking[:4]
-        badBirds = ranking[4:]
+        bestBirds = ranking[:5]
 
-        """
         nextNN = []
         for ibird in bestBirds:
             nextNN += [neurals[ibird]]
-
-        for ibird in range(6):
-            mutateNN(neurals[0], sess)
-            nextNN += [neurals[ibird]]
+            #print(nextNN[0].weights1)
+            mut = mutateNN(neurals[ibird])
+            #print(nextNN[0].weights1)
+            nextNN += [mut]
+            print(nextNN[-2] == nextNN[-1])
 
         neurals = list(nextNN)
-        """
-        mutateNN(neurals[0], sess)
-        #predictions = [tf.argmax(neurals[i].a, 1) for i in range(n_population)]
+        for k in nextNN:
+            print(k.weights1)
 
+        #predictions = [tf.argmax(neurals[i].a, 1) for i in range(n_population)]
 
         # Init each variables
         scores = [0] * n_population
