@@ -28,7 +28,7 @@ canvas.configure(background="white")
 
 birds = []
 # Population parameters
-n_population = 10
+n_population = 100
 
 def initBirds():
     global birds
@@ -45,7 +45,7 @@ t = [0] * n_population
 initSecond = 2
 seconds = initSecond
 last_time_wall = 0
-generation = 1
+generation = 10
 
 scores = [0] * n_population
 lost = [False] * n_population
@@ -53,6 +53,7 @@ jump = [True] * n_population
 fitness = [0] * n_population
 
 isAI = True
+maxScore = 0
 
 if(isAI):
     from model import *
@@ -71,12 +72,11 @@ fenetre.bind('<Button-1>', motion)
 fenetre.bind('<space>', motion)
 
 scoreText = canvas.create_text(size_window_x / 2, 80, text="0", anchor=CENTER, font=('Helvetica', '50', "bold"))
-generationText = canvas.create_text(50, 50, text="Generation : 1", anchor=W, font=('Helvetica', '20', "bold"))
+generationText = canvas.create_text(50, 50, text="Generation : 1", anchor=NW, font=('Helvetica', '18', "bold"))
 
 canvas.pack()
 
 # Write to a file the features
-#file = open("data", "a+")
 
 if(isAI):
     # Creation of the population
@@ -186,8 +186,6 @@ while True:
                 #print(pred)
                 if(pred == 1):
                     jumping(i)
-    else:
-        file.write(str(features_1) + "/" + str(features_2) + "/" + str(float(jump)) + "\n")
 
     for i in jump:
         if(i):
@@ -196,11 +194,14 @@ while True:
 
 
     # Display score
-    canvas.itemconfigure(scoreText, text=str(max(scores)) + ", In Life : " + str(len([k for k in birds if k!=None])), fill='#445b75')
+    canvas.itemconfigure(scoreText, text=str(max(scores)), fill='#445b75')
     canvas.tag_raise(scoreText)
 
     # Display generation
-    canvas.itemconfigure(generationText, text="Generation : " + str(generation), fill='#ff0000')
+    n_alive = len([k for k in birds if k!=None])
+    canvas.itemconfigure(generationText, text="Generation : " + str(generation)
+            + "\nBirds alive : " + str(n_alive)
+            + "\nMax Score : " + str(maxScore), fill='#ff0000')
     canvas.tag_raise(generationText)
 
 
@@ -211,7 +212,6 @@ while True:
             birds[i] = None
 
     if(not(False in lost)):
-        scores = [0] * n_population
         for wall in walls:
             canvas.delete(wall)
         walls = []
@@ -226,24 +226,26 @@ while True:
         #print(fitness)
         ranking = sorted(range(n_population), key=lambda x: fitness[x])[::-1]
         #print(ranking)
-        bestBirds = ranking[:5]
+        bestBirds = ranking[:n_population//2]
 
         nextNN = []
+        if(maxScore == 0):
+            mutate_rate = 0
+        else:
+            mutate_rate = 5
+
         for ibird in bestBirds:
             nextNN += [neurals[ibird]]
-            #print(nextNN[0].weights1)
-            mut = mutateNN(neurals[ibird])
-            #print(nextNN[0].weights1)
+            mut = mutateNN(neurals[ibird], mutate_rate)
             nextNN += [mut]
-            print(nextNN[-2] == nextNN[-1])
 
         neurals = list(nextNN)
-        for k in nextNN:
-            print(k.weights1)
 
         #predictions = [tf.argmax(neurals[i].a, 1) for i in range(n_population)]
 
         # Init each variables
+        if(max(scores) > maxScore):
+            maxScore = max(scores)
         scores = [0] * n_population
         lost = [False] * n_population
         jump = [True] * n_population
