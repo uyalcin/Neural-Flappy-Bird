@@ -28,7 +28,7 @@ canvas.configure(background="white")
 
 birds = []
 # Population parameters
-n_population = 100
+n_population = 10
 
 def initBirds():
     global birds
@@ -45,7 +45,7 @@ t = [0] * n_population
 initSecond = 2
 seconds = initSecond
 last_time_wall = 0
-generation = 10
+generation = 0
 
 scores = [0] * n_population
 lost = [False] * n_population
