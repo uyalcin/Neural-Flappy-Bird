@@ -2,6 +2,7 @@
 # Neural Flappy Bird
 
 Neural Flappy Bird is a simple artificial intelligence which play to the famous game **Flappy Bird**. The AI is based on a **neural network** and a **genetic algorithm**. 
+![enter image description here](https://raw.githubusercontent.com/uyalcin/Neural-Flappy-Bird/master/screenshots/neural_flappy.png)
 
 ## Neural Network
 Here is the architecture of the neural network :
