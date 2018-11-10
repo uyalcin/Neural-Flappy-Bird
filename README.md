@@ -11,7 +11,7 @@ Here is the architecture of the neural network :
 Basically, the input layer has 2 neurons : the horizontal and vertical distances to the closest wall. The features are represented here :
 
 ![enter image description here](https://raw.githubusercontent.com/uyalcin/Neural-Flappy-Bird/master/screenshots/1.png)
-Then there is a hidden layer with 10 neurons (with ReLU activation), and finally return the decision of the bird : to jump or not to jump.
+Then there is a hidden layer with 10 neurons (with ReLU activation). Finally, the model returns the decision of the bird : to jump or not to jump.
 The code of the neural network is implemented in the file **neural_network.py** with the numpy library. 
 
 ## Genetic algorithm
